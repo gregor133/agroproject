@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Upload</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f3ff;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .file-info {
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .file-name {
+            margin-top: 10px;
+            color: #667eea;
+            font-weight: bold;
+            word-break: break-all;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .upload-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        
+        .api-info {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .api-info a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .progress {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Video</h1>
+        <p class="subtitle">Max file size: 3GB • Supported formats: MP4, AVI, MOV, MKV, WEBM, FLV, WMV</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Drag & drop your video here</div>
+            <div class="file-info">or click to browse files</div>
+            <div class="file-name" id="fileName"></div>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress" id="progress"></div>
+            </div>
+        </div>
+        
+        <input type="file" id="fileInput" class="file-input" accept=".mp4,.avi,.mov,.mkv,.webm,.flv,.wmv">
+        
+        <button class="upload-btn" id="uploadBtn" disabled>Upload Video</button>
+        
+        {% if success %}
+        <div class="status success">
+            ✓ {{ success }}<br>
+            Video ID: {{ video_id }}<br>
+            Filename: {{ filename }}
+        </div>
+        {% endif %}
+        
+        {% if error %}
+        <div class="status error">
+            ✗ {{ error }}
+        </div>
+        {% endif %}
+        
+        <div class="api-info">
+            <strong>API Endpoint:</strong> POST /api/upload-video/<br>
+            <strong>cURL Example:</strong><br>
+            <code>curl -X POST -F "file=@video.mp4" http://localhost:8000/api/upload-video/</code>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileName = document.getElementById('fileName');
+        const progressBar = document.getElementById('progressBar');
+        const progress = document.getElementById('progress');
+        
+        let selectedFile = null;
+        
+        // Клик по области загрузки
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // Выбор файла через input
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelection(e.target.files[0]);
+            }
+        });
+        
+        // Drag & drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.add('dragover');
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => {
+                uploadArea.classList.remove('dragover');
+            }, false);
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const file = dt.files[0];
+            if (file) {
+                handleFileSelection(file);
+            }
+        });
+        
+        function handleFileSelection(file) {
+            // Проверка размера файла (3GB = 3221225472 bytes)
+            if (file.size > 3221225472) {
+                alert('File size exceeds 3GB limit!');
+                return;
+            }
+            
+            // Проверка расширения файла
+            const validExtensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.wmv'];
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            
+            if (!validExtensions.includes(fileExt)) {
+                alert('Invalid file format! Allowed formats: ' + validExtensions.join(', '));
+                return;
+            }
+            
+            selectedFile = file;
+            fileName.textContent = file.name;
+            fileName.style.display = 'block';
+            uploadBtn.disabled = false;
+            
+            // Скрываем предыдущие статусы
+            document.querySelectorAll('.status').forEach(el => {
+                el.style.display = 'none';
+            });
+        }
+        
+        // Загрузка файла
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            // Показываем прогресс бар
+            progressBar.style.display = 'block';
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            
+            try {
+                const response = await fetch('/upload-video-gui/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const html = await response.text();
+                
+                // Создаем временный элемент для парсинга HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Заменяем текущую страницу
+                document.documentElement.innerHTML = doc.documentElement.innerHTML;
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Video';
+                progressBar.style.display = 'none';
+                
+                // Показываем ошибку
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'status error';
+                errorDiv.textContent = 'Upload failed. Please try again.';
+                document.querySelector('.container').appendChild(errorDiv);
+            }
+        });
+        
+        // Симуляция прогресса загрузки (для демонстрации)
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                let progressValue = 0;
+                
+                const interval = setInterval(() => {
+                    if (progressValue < 90) {
+                        progressValue += 10;
+                        progress.style.width = progressValue + '%';
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 100);
+            }
+        });
+    </script>
+</body>
+</html>
