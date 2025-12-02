@@ -1,0 +1,21 @@
+# Core web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# Kafka - используем более стабильную версию
+kafka-python==2.0.2
+
+# Templates
+jinja2==3.1.2
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Async file operations
+aiofiles==23.2.1
+
+# Utilities
+six==1.16.0
+requests==2.31.0
+typing-extensions==4.8.0
